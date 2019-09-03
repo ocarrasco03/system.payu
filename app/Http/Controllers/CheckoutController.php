@@ -2,18 +2,22 @@
 
 namespace App\Http\Controllers;
 
-use App\Garflo\Payments;
 use App\Garflo\Models\PayerData;
 use App\Garflo\Models\PaymentInfo;
 use App\Garflo\Models\RequestInfo;
 use App\Garflo\Models\TransactionResponse;
-use Illuminate\Http\Request;
+use App\Garflo\Payments;
 use Carbon\Carbon;
+use Exception;
+use Helpers;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\File;
-use Webiny\Component\Crypt\Crypt;
+use InvalidArgumentException;
+use Log;
 use PayUParameters;
 use PayUPayments;
-use Exception;
+use Webiny\Component\Crypt\Crypt;
+use GuzzleHttp\Client;
 
 class CheckoutController extends Controller
 {
@@ -93,7 +97,7 @@ class CheckoutController extends Controller
                 return $this->payWithCash($params);
 
             }
-            
+
             if ($request->input('type') == 'creditCard') {
                 $this->validate($request, [
                     'reference' => 'required',
@@ -121,9 +125,10 @@ class CheckoutController extends Controller
             //     throw new Exception($message);
             // }
         } catch (Exception $e) {
-            // $resJSON['error'] = $e;
             $resJSON['errorMessage'] = $e->getMessage();
-
+            return response()->json($resJSON, 422);
+        } catch (InvalidArgumentException $e) {
+            $resJSON['errorMessage'] = $e->getMessage();
             return response()->json($resJSON, 422);
         }
     }
@@ -171,8 +176,8 @@ class CheckoutController extends Controller
                 PayUParameters::COUNTRY => Payments::getCountry(),
                 PayUParameters::EXPIRATION_DATE => substr(date_format(Carbon::now()->addHours(24)->addMinutes(5), 'c'), 0, -6),
                 // PayUParameters::EXPIRATION_DATE => substr(date_format(Carbon::now()->addHours(1), 'c'), 0, -6),
-                PayUParameters::IP_ADDRESS => '127.0.0.1',
-                // PayUParameters::NOTIFY_URL => 'https://api.rodason.com/api/v1/notify/' . $requestId,
+                PayUParameters::IP_ADDRESS => Helpers::getUserIP(),
+                PayUParameters::NOTIFY_URL => 'https://api.rodason.com/api/v1/notify/' . $requestId,
             );
 
             $response = PayUPayments::doAuthorizationAndCapture($data);
@@ -181,7 +186,7 @@ class CheckoutController extends Controller
                 if (!File::isDirectory('payWithCash')) {
                     mkdir('payWithCash', 0755);
                 }
-                $this->logResponse($response, 'payWithCash\\payWithCash');
+                Helpers::logResponse($response, 'payWithCash\\payWithCash', $data);
                 if ($response->transactionResponse->state == 'PENDING') {
                     $resJSON['status'] = $response->transactionResponse->state;
                     $resJSON['orderId'] = $response->transactionResponse->orderId;
@@ -261,10 +266,9 @@ class CheckoutController extends Controller
                 mkdir('payWithCash', 0755);
             }
 
-            $this->logResponse($e, 'payWithCash\\log_');
+            Helpers::logResponse($e->getMessage(), 'payWithCash\\log_');
 
-            $resJSON['errorMessage'] = $e;
-            $resJSON['errorParams'] = $data;
+            $resJSON['errorMessage'] = $e->getMessage();
             return response()->json($resJSON, 409);
         }
     }
@@ -333,7 +337,7 @@ class CheckoutController extends Controller
                 PayUParameters::PAYMENT_METHOD => $request['payment_method'],
                 PayUParameters::INSTALLMENTS_NUMBER => '1',
                 PayUParameters::COUNTRY => Payments::getCountry(),
-                PayUParameters::IP_ADDRESS => '127.0.0.1',
+                PayUParameters::IP_ADDRESS => Helpers::getUserIP(),
                 PayUParameters::NOTIFY_URL => 'https://api.rodason.com/api/v1/notify/' . $requestId,
                 PayUParameters::USER_AGENT => $_SERVER['HTTP_USER_AGENT'],
             );
@@ -341,7 +345,7 @@ class CheckoutController extends Controller
             $response = PayUPayments::doAuthorizationAndCapture($data);
 
             if ($response) {
-                $this->logResponse($response, 'payWithCard\\payWithCard_');
+                Helpers::logResponse($response, 'payWithCard\\payWithCard_', $data);
 
                 if ($response->transactionResponse->state == 'PENDING') {
                     $resJSON['status'] = $response->transactionResponse->state;
@@ -489,7 +493,7 @@ class CheckoutController extends Controller
 
         try {
 
-            $this->logResponse($request->all(), 'notify\\notify');
+            Helpers::logResponse($request->all(), 'notify\\notify');
 
             $state = null;
 
@@ -515,20 +519,20 @@ class CheckoutController extends Controller
             );
 
             $this->storeTransaction($response, $id);
+            
+            $client = new Client([
+                'base_uri' => 'http: //www.systemtour.demo/mx/api/confirmation/update-reserva.php',
+                'timeout' => 2.0,
+            ]);
+
+
         } catch (Exception $e) {
-            $this->logResponse($e->getMessage(), 'notify\\log_');
-            $this->logResponse($response, 'notify\\log_');
+            Helpers::logResponse($e->getMessage(), 'notify\\log_');
+            Helpers::logResponse($response, 'notify\\log_');
 
         }
 
         return response()->json($response, 200);
     }
 
-    public function logResponse($request, $type)
-    {
-        $fp = fopen($type . Carbon::now()->format('Y-m-d') . '.json', 'a+');
-        fwrite($fp, json_encode($request) . "\r\n");
-        fclose($fp);
-
-    }
 }
