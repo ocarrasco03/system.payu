@@ -22,7 +22,8 @@
         },
         "classmap": [
             "sdk/lib",
-            "sdk/webiny"
+            "sdk/webiny",
+            "app/Libraries"
         ]
     },
     "autoload-dev": {
