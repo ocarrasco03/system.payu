@@ -23,6 +23,6 @@ class System extends Model
      */
     public function requestInfo()
     {
-        return $this->hasMany('App\RequestInfo', 'id_systems');
+        return $this->hasMany('App\Garflo\Models\RequestInfo', 'id_systems');
     }
 }

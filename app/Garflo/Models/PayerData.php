@@ -24,7 +24,7 @@ class PayerData extends Model
      */
     public function requestInfo()
     {
-        return $this->belongsTo('App\RequestInfo', 'id');
+        return $this->belongsTo('App\Garflo\Models\RequestInfo', 'id');
     }
 
     /**
@@ -38,7 +38,7 @@ class PayerData extends Model
         if ($query->where('email', $email)->count() > 0) {
             return true;
         }
-
+        
         return false;
     }
 

@@ -7,7 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 class TransactionResponse extends Model
 {
     protected $table = 'transaction_response';
-
+    
     /**
      * The attributes that are mass assignable.
      *
@@ -24,7 +24,7 @@ class TransactionResponse extends Model
      */
     public function requestInfo()
     {
-        return $this->belongsTo('App\RequestInfo', 'id');
+        return $this->belongsTo('App\Garflo\Models\RequestInfo', 'id');
     }
 
 }

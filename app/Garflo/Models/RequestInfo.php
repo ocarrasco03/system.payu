@@ -7,7 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 class RequestInfo extends Model
 {
     protected $table = 'request_info';
-
+    
     /**
      * The attributes that are mass assignable.
      *
@@ -24,7 +24,7 @@ class RequestInfo extends Model
      */
     public function systems()
     {
-        return $this->belongsTo('App\Systems', 'id');
+        return $this->belongsTo('App\Garflo\Models\Systems', 'id');
     }
 
     /**
@@ -34,7 +34,7 @@ class RequestInfo extends Model
      */
     public function paymentInfo()
     {
-        return $this->hasMany('App\PaymentInfo', 'id_request_info');
+        return $this->hasMany('App\Garflo\Models\PaymentInfo', 'id_request_info');
     }
 
     /**
@@ -44,7 +44,7 @@ class RequestInfo extends Model
      */
     public function payerData()
     {
-        return $this->hasMany('App\PayerData', 'id_request_info');
+        return $this->hasMany('App\Garflo\Models\PayerData', 'id_request_info');
     }
 
     /**
@@ -54,7 +54,7 @@ class RequestInfo extends Model
      */
     public function transactionResponse()
     {
-        return $this->hasMany('App\TransactionResponse', 'id_request_info');
+        return $this->hasMany('App\Garflo\Models\TransactionResponse', 'id_request_info');
     }
 
     /**

@@ -24,7 +24,7 @@ class PaymentInfo extends Model
      */
     public function requestInfo()
     {
-        return $this->belongsTo('App\RequestInfo', 'id');
+        return $this->belongsTo('App\Garflo\Models\RequestInfo', 'id');
     }
 
     public function scopePaymentExist($query, $reqId)
