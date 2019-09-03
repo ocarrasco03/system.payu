@@ -19,13 +19,16 @@
     "autoload": {
         "psr-4": {
             "App\\": "app/"
-        }
+        },
+        "classmap": [
+            "sdk/lib",
+            "sdk/webiny"
+        ]
     },
     "autoload-dev": {
         "classmap": [
             "tests/",
-            "database/",
-            "sdk/lib"
+            "database/"
         ]
     },
     "scripts": {

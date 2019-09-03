@@ -1,5 +1,8 @@
 <?php
 
+use App\Garflo\Payments;
+use Webiny\Component\Crypt\Crypt;
+
 /*
 |--------------------------------------------------------------------------
 | Application Routes
@@ -11,6 +14,22 @@
 |
 */
 
+function onSuccess($res)
+{
+    return var_dump($res);
+}
+function onError($res)
+{
+    return var_dump($res);
+}
+
 $router->get('/', function () use ($router) {
-    return $router->app->version();
+    return redirect('https://www.systemtour.com');
+});
+
+$router->group(['prefix' => 'api/v1'], function () use ($router) {
+    $router->get('/ping', function() use ($router) {
+        return Payments::doPing('onSuccess', 'onError');
+    });
+    
 });
