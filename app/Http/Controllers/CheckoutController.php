@@ -266,7 +266,7 @@ class CheckoutController extends Controller
                 mkdir('payWithCash', 0755);
             }
 
-            Helpers::logResponse($e->getMessage(), 'payWithCash\\log_');
+            Helpers::logResponse($e->getMessage(), 'payWithCash\\log_', $data);
 
             $resJSON['errorMessage'] = $e->getMessage();
             return response()->json($resJSON, 409);
@@ -406,6 +406,7 @@ class CheckoutController extends Controller
             return response()->json($resJSON, 200);
         } catch (Exception $e) {
             $resJSON['errorMessage'] = $e->getMessage();
+            Helpers::logResponse($e->getMessage(), 'payWithCard\\log_', $data);
             return response()->json($resJSON, 409);
         }
     }
@@ -522,8 +523,11 @@ class CheckoutController extends Controller
             
             $client = new Client([
                 'base_uri' => 'http: //www.systemtour.demo/mx/api/confirmation/update-reserva.php',
-                'timeout' => 2.0,
+                'timeout' => 120.0,
             ]);
+
+            $params['status'] = $state;
+            $res_glob = $client->request('POST', '', ['json' => $params]);
 
 
         } catch (Exception $e) {
