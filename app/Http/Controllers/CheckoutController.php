@@ -420,9 +420,9 @@ class CheckoutController extends Controller
     public function storePayer($params)
     {
         $data = PayerData::create([
-            'nombre_completo' => $params['name'],
+            'full_name' => $params['name'],
             'email' => $params['email'],
-            'telefono' => $params['phone'],
+            'phone' => $params['phone'],
             'address' => $params['address'],
             'city' => $params['city'],
             'state' => $params['state'],
@@ -438,8 +438,8 @@ class CheckoutController extends Controller
         $data = RequestInfo::create([
             'id_systems' => $params['label'],
             'id_payer' => $idPayer,
-            'tipo_pago' => $params['payment_method'],
             'id_reservacion' => $params['reference'],
+            'payment_method' => $params['payment_method'],
         ]);
 
         return $data->id;
@@ -482,6 +482,8 @@ class CheckoutController extends Controller
             'response_code' => $responseCode,
             'pending_reason' => $pendingReason,
             'url_payment_recipt_html' => $urlPaymentReciptHtml,
+            'url_payment_recipt_pdf' => null,
+            'global_update' => null,
         ]);
     }
 

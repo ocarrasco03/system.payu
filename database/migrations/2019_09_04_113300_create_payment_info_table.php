@@ -16,7 +16,7 @@ class CreatePaymentInfoTable extends Migration
         Schema::create('payment_info', function (Blueprint $table) {
             $table->increments('id');
             $table->integer('id_request_info')->unsigned()->nullable();
-            $table->string('reference-code')->nullable();
+            $table->string('reference_code')->nullable();
             $table->string('description')->nullable();
             $table->double('value', 14, 2)->nullable();
             $table->string('currency', 5)->nullable();

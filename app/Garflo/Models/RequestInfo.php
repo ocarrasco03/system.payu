@@ -14,7 +14,7 @@ class RequestInfo extends Model
      * @var array
      */
     protected $fillable = [
-        'id_systems', 'id_payer', 'tipo_pago', 'id_reservacion',
+        'id_systems', 'id_payer', 'id_reservation', 'payment_method',
     ];
 
     /**
@@ -24,7 +24,7 @@ class RequestInfo extends Model
      */
     public function systems()
     {
-        return $this->belongsTo('App\Garflo\Models\Systems', 'id');
+        return $this->belongsTo('App\Garflo\Models\System', 'id');
     }
 
     /**

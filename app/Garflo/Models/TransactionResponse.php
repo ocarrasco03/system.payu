@@ -14,7 +14,7 @@ class TransactionResponse extends Model
      * @var array
      */
     protected $fillable = [
-        'id_request_info', 'id_order', 'id_transaction', 'status', 'response_code', 'pending_reason', 'url_payment_recipt_html',
+        'id_request_info', 'id_order', 'id_transaction', 'status', 'response_code', 'pending_reason', 'url_payment_recipt_html', 'url_payment_recipt_pdf', 'global_update',
     ];
 
     /**
