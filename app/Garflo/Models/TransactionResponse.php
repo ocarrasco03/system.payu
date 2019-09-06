@@ -24,7 +24,21 @@ class TransactionResponse extends Model
      */
     public function requestInfo()
     {
-        return $this->belongsTo('App\Garflo\Models\RequestInfo', 'id');
+        return $this->belongsTo(RequestInfo::class, 'id');
+    }
+
+    public static function scopegetTransactionStatusByRequest($query, $request)
+    {
+        return $query->where('id_request_info', $request)->get();
+    }
+
+    public static function scoperequestHasTransactions($query, $request)
+    {
+        if ($query->where('id_request_info', $request)->count() > 0) {
+            return true;
+        }
+
+        return false;
     }
 
 }

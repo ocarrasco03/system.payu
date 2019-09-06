@@ -14,7 +14,7 @@ class RequestInfo extends Model
      * @var array
      */
     protected $fillable = [
-        'id_systems', 'id_payer', 'id_reservation', 'payment_method',
+        'id_system', 'id_payer', 'id_reservation', 'payment_method', 'manual_validation',
     ];
 
     /**
@@ -54,7 +54,7 @@ class RequestInfo extends Model
      */
     public function transactionResponse()
     {
-        return $this->hasMany('App\Garflo\Models\TransactionResponse', 'id_request_info');
+        return $this->hasMany(TransactionResponse::class, 'id_request_info');
     }
 
     /**
@@ -65,7 +65,7 @@ class RequestInfo extends Model
      */
     public static function scopeRequestExist($query, $reference)
     {
-        if ($query->where('id_reservacion', $reference)->count() > 0) {
+        if ($query->where('id_reservation', $reference)->count() > 0) {
             return true;
         }
 
@@ -74,6 +74,6 @@ class RequestInfo extends Model
 
     public static function scopegetId($query, $reference)
     {
-        return $query->select('id')->where('id_reservacion', $reference)->get();
+        return $query->select('id')->where('id_reservation', $reference)->get();
     }
 }
