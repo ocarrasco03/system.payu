@@ -1,16 +1,24 @@
 <?php
 
 use Carbon\Carbon;
+use Illuminate\Support\Facades\File;
 
 class Helpers
 {
-    public static function logResponse($response, $type, $params = null)
+    public static function logResponse($response, $path, $fileName, $params = null)
     {
+        if (!File::isDirectory('log')) {
+            mkdir('log', 0755);
+        }
+
+        if (!File::isDirectory('log\\' . $path)) {
+            mkdir('log\\' . $path, 0755);
+        }
 
         $log['response'] = $response;
         isset($params) ? $log['params'] = $params : null;
 
-        $fp = fopen($type . Carbon::now()->format('Y-m-d') . '.json', 'a+');
+        $fp = fopen('log\\' . $path . '\\' . $fileName . '_' . Carbon::now()->format('Y-m-d') . '.json', 'a+');
         fwrite($fp, json_encode($log) . "\r\n");
         fclose($fp);
     }

@@ -183,10 +183,7 @@ class CheckoutController extends Controller
             $response = PayUPayments::doAuthorizationAndCapture($data);
 
             if ($response) {
-                if (!File::isDirectory('payWithCash')) {
-                    mkdir('payWithCash', 0755);
-                }
-                Helpers::logResponse($response, 'payWithCash\\payWithCash', $data);
+                Helpers::logResponse($response, 'payWithCash', 'payWithCash', $data);
                 if ($response->transactionResponse->state == 'PENDING') {
                     $resJSON['status'] = $response->transactionResponse->state;
                     $resJSON['orderId'] = $response->transactionResponse->orderId;
@@ -262,11 +259,7 @@ class CheckoutController extends Controller
 
             return response()->json($resJSON, 200);
         } catch (Exception $e) {
-            if (!File::isDirectory('payWithCash')) {
-                mkdir('payWithCash', 0755);
-            }
-
-            Helpers::logResponse($e->getMessage(), 'payWithCash\\log_', $data);
+            Helpers::logResponse($e->getMessage(), 'payWithCash', 'log', $data);
 
             $resJSON['errorMessage'] = $e->getMessage();
             return response()->json($resJSON, 409);
@@ -282,10 +275,6 @@ class CheckoutController extends Controller
      */
     public function payWithCreditCard($request)
     {
-        if (!File::isDirectory('payWithCard')) {
-            mkdir('payWithCard', 0755);
-        }
-
         try {
             if (!PayerData::PayerExist($request['email'])) {
                 $payerId = $this->storePayer($request);
@@ -345,7 +334,7 @@ class CheckoutController extends Controller
             $response = PayUPayments::doAuthorizationAndCapture($data);
 
             if ($response) {
-                Helpers::logResponse($response, 'payWithCard\\payWithCard_', $data);
+                Helpers::logResponse($response, 'payWithCard', 'payWithCard', $data);
 
                 if ($response->transactionResponse->state == 'PENDING') {
                     $resJSON['status'] = $response->transactionResponse->state;
@@ -406,7 +395,7 @@ class CheckoutController extends Controller
             return response()->json($resJSON, 200);
         } catch (Exception $e) {
             $resJSON['errorMessage'] = $e->getMessage();
-            Helpers::logResponse($e->getMessage(), 'payWithCard\\log_', $data);
+            Helpers::logResponse($e->getMessage(), 'payWithCard', 'log', $data);
             return response()->json($resJSON, 409);
         }
     }
@@ -436,10 +425,11 @@ class CheckoutController extends Controller
     public function storeRequestInfo($params, $idPayer)
     {
         $data = RequestInfo::create([
-            'id_systems' => $params['label'],
+            'id_system' => $params['label'],
             'id_payer' => $idPayer,
-            'id_reservacion' => $params['reference'],
+            'id_reservation' => $params['reference'],
             'payment_method' => $params['payment_method'],
+            'manual_validation' => false,
         ]);
 
         return $data->id;
@@ -461,16 +451,20 @@ class CheckoutController extends Controller
 
     }
 
-    public function storeTransaction($response, $idRequestInfo)
+    public function storeTransaction($response, $idRequestInfo, $globalStatus = null)
     {
         $orderId = array_key_exists('orderId', $response->transactionResponse) ? $response->transactionResponse->orderId : null;
         $transactionId = array_key_exists('transactionId', $response->transactionResponse) ? $response->transactionResponse->transactionId : null;
         $responseCode = array_key_exists('responseCode', $response->transactionResponse) ? $response->transactionResponse->responseCode : null;
         $pendingReason = array_key_exists('pendingReason', $response->transactionResponse) ? $response->transactionResponse->pendingReason : null;
         $urlPaymentReciptHtml = null;
+        $urlPaymentReciptPdf = null;
         if (array_key_exists('extraParameters', $response->transactionResponse)) {
             if (array_key_exists('URL_PAYMENT_RECEIPT_HTML', $response->transactionResponse->extraParameters)) {
                 $urlPaymentReciptHtml = $response->transactionResponse->extraParameters->URL_PAYMENT_RECEIPT_HTML;
+            }
+            if (array_key_exists('URL_PAYMENT_RECEIPT_PDF', $response->transactionResponse->extraParameters)) {
+                $urlPaymentReciptPdf = $response->transactionResponse->extraParameters->URL_PAYMENT_RECEIPT_PDF;
             }
         }
 
@@ -482,21 +476,16 @@ class CheckoutController extends Controller
             'response_code' => $responseCode,
             'pending_reason' => $pendingReason,
             'url_payment_recipt_html' => $urlPaymentReciptHtml,
-            'url_payment_recipt_pdf' => null,
-            'global_update' => null,
+            'url_payment_recipt_pdf' => $urlPaymentReciptPdf,
+            'global_update' => $globalStatus,
         ]);
     }
 
     public function notify(Request $request, $id)
     {
-
-        if (!File::isDirectory('notify')) {
-            mkdir('notify', 0755);
-        }
-
         try {
 
-            Helpers::logResponse($request->all(), 'notify\\notify');
+            Helpers::logResponse($request->all(), 'notify', 'notify');
 
             $state = null;
 
@@ -524,21 +513,50 @@ class CheckoutController extends Controller
             $this->storeTransaction($response, $id);
             
             $client = new Client([
-                'base_uri' => 'http: //www.systemtour.demo/mx/api/confirmation/update-reserva.php',
+                'base_uri' => 'http://www.systemtour.demo/mx/api/confirmation/update-reserva.php',
                 'timeout' => 120.0,
             ]);
 
             $params['status'] = $state;
+            $params['reference'] = $request->reference_sale;
+            $params['transactionId'] = $request->transaction_id;
             $res_glob = $client->request('POST', '', ['json' => $params]);
 
+            Helpers::logResponse($res_glob, 'notify', 'global_log');
 
+            return response()->json($response, 200);
+            
         } catch (Exception $e) {
-            Helpers::logResponse($e->getMessage(), 'notify\\log_');
-            Helpers::logResponse($response, 'notify\\log_');
-
+            Helpers::logResponse($e->getMessage(), 'notify', 'log');
+            Helpers::logResponse($response, 'notify','log');
+            return response()->json($response, 409);
         }
 
-        return response()->json($response, 200);
+    }
+
+    public function validateProcess($reference)
+    {
+        if (RequestInfo::RequestExist($reference)) {
+            $reqId = RequestInfo::getId($reference);
+            foreach ($reqId as $data) {
+                $reqId = $data['id'];
+            }
+
+            if (TransactionResponse::requestHasTransactions($reqId)) {
+                $transactions = TransactionResponse::getTransactionStatusByRequest($reqId);
+                foreach ($transactions as $data) {
+                    if ($data['status'] == 'PENDING' || $data['status'] == 'APPROVED' ) {
+                        return $data;
+                    }
+                }
+
+                return false;
+            }
+
+            return false;
+        }
+
+        return false;
     }
 
 }
