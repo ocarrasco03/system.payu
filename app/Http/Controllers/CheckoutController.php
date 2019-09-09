@@ -76,86 +76,86 @@ class CheckoutController extends Controller
                 'tax_return' => $request->input('tax_return'),
             );
 
-            // if ($token == $request->input('amount')) {
-            if ($request->input('type') == 'cash') {
-                $this->validate($request, [
-                    'reference' => 'required',
-                    'description' => 'required|max:250',
-                    'currency' => 'required|string',
-                    'amount' => 'required|numeric',
-                    'email' => 'required|email',
-                    'name' => 'required|string',
-                    'phone' => 'nullable|numeric',
-                    'payment_method' => 'required',
-                    'tax' => 'nullable|numeric',
-                    'tax_return' => 'nullable|numeric',
-                    'label' => 'required|numeric',
-                ]);
+            if ($token == $request->input('amount')) {
+                if ($request->input('type') == 'cash') {
+                    $this->validate($request, [
+                        'reference' => 'required',
+                        'description' => 'required|max:250',
+                        'currency' => 'required|string',
+                        'amount' => 'required|numeric',
+                        'email' => 'required|email',
+                        'name' => 'required|string',
+                        'phone' => 'nullable|numeric',
+                        'payment_method' => 'required',
+                        'tax' => 'nullable|numeric',
+                        'tax_return' => 'nullable|numeric',
+                        'label' => 'required|numeric',
+                    ]);
 
-                if (!$this->validateProcess($request->input('reference'))) {
-                    return $this->payWithCash($params);
-                } else {
-                    $data = $this->validateProcess($request->input('reference'));
-                    $resJSON['status'] = $data['status'];
-                    $resJSON['orderId'] = $data['id_order'];
-                    $resJSON['transactionId'] = $data['id_transaction'];
-                    $data['status'] == 'PENDING' ? $resJSON['pendingReason'] = $data['pending_reason'] : null;
-                    $data['status'] == 'PENDING' ? $resJSON['urlPaymentReceiptHtml'] = $data['url_payment_recipt_html'] : null;
-                    $data['status'] == 'PENDING' ? $resJSON['urlPaymentReceiptPdf'] = $data['url_payment_recipt_pdf'] : null;
-                    $data['status'] == 'PENDING' ? $resJSON['expirationDate'] = Carbon::createFromFormat('Y-m-d H:i:s', $data['created_at'])->addHours(19)->addMinutes(5)->toDateTimeString() : null;
-                    $resJSON['responseCode'] = $data['response_code'];
-                    if (array_key_exists($data['response_code'], Payments::$pendingResponseCode)) {
-                        $resJSON['message'] = Payments::$pendingResponseCode[$data['response_code']];
+                    if (!$this->validateProcess($request->input('reference'))) {
+                        return $this->payWithCash($params);
+                    } else {
+                        $data = $this->validateProcess($request->input('reference'));
+                        $resJSON['status'] = $data['status'];
+                        $resJSON['orderId'] = $data['id_order'];
+                        $resJSON['transactionId'] = $data['id_transaction'];
+                        $data['status'] == 'PENDING' ? $resJSON['pendingReason'] = $data['pending_reason'] : null;
+                        $data['status'] == 'PENDING' ? $resJSON['urlPaymentReceiptHtml'] = $data['url_payment_recipt_html'] : null;
+                        $data['status'] == 'PENDING' ? $resJSON['urlPaymentReceiptPdf'] = $data['url_payment_recipt_pdf'] : null;
+                        $data['status'] == 'PENDING' ? $resJSON['expirationDate'] = Carbon::createFromFormat('Y-m-d H:i:s', $data['created_at'])->addHours(19)->addMinutes(5)->toDateTimeString() : null;
+                        $resJSON['responseCode'] = $data['response_code'];
+                        if (array_key_exists($data['response_code'], Payments::$pendingResponseCode)) {
+                            $resJSON['message'] = Payments::$pendingResponseCode[$data['response_code']];
+                        }
+                        $data['status'] == 'APPROVED' ? $resJSON['trazabilityCode'] = $data['trazability_code'] : null;
+                        $data['status'] == 'APPROVED' ? $resJSON['authorizationCode'] = $data['authorization_code'] : null;
+                        return response()->json($resJSON, 200);
+
                     }
-                    $data['status'] == 'APPROVED' ? $resJSON['trazabilityCode'] = $data['trazability_code'] : null;
-                    $data['status'] == 'APPROVED' ? $resJSON['authorizationCode'] = $data['authorization_code'] : null;
-                    return response()->json($resJSON, 200);
 
                 }
 
-            }
+                if ($request->input('type') == 'creditCard') {
+                    $this->validate($request, [
+                        'reference' => 'required',
+                        'description' => 'required|max:250',
+                        'currency' => 'required|string',
+                        'amount' => 'required|numeric',
+                        'email' => 'required|email',
+                        'name' => 'required|string',
+                        'phone' => 'nullable|numeric',
+                        'payment_method' => 'required',
+                        'credit_card' => 'required|numeric',
+                        'expiration_date' => 'required',
+                        'cvv' => 'required|numeric',
+                        'label' => 'required|numeric',
+                    ]);
 
-            if ($request->input('type') == 'creditCard') {
-                $this->validate($request, [
-                    'reference' => 'required',
-                    'description' => 'required|max:250',
-                    'currency' => 'required|string',
-                    'amount' => 'required|numeric',
-                    'email' => 'required|email',
-                    'name' => 'required|string',
-                    'phone' => 'nullable|numeric',
-                    'payment_method' => 'required',
-                    'credit_card' => 'required|numeric',
-                    'expiration_date' => 'required',
-                    'cvv' => 'required|numeric',
-                    'label' => 'required|numeric',
-                ]);
-
-                if (!$this->validateProcess($request->input('reference'))) {
-                    return $this->payWithCreditCard($params);
-                } else {
-                    $data = $this->validateProcess($request->input('reference'));
-                    $resJSON['status'] = $data['status'];
-                    $resJSON['orderId'] = $data['id_order'];
-                    $resJSON['transactionId'] = $data['id_transaction'];
-                    $data['status'] == 'PENDING' ? $resJSON['pendingReason'] = $data['pending_reason'] : null;
-                    $resJSON['responseCode'] = $data['response_code'];
-                    if (array_key_exists($data['response_code'], Payments::$pendingResponseCode)) {
-                        $resJSON['message'] = Payments::$pendingResponseCode[$data['response_code']];
+                    if (!$this->validateProcess($request->input('reference'))) {
+                        return $this->payWithCreditCard($params);
+                    } else {
+                        $data = $this->validateProcess($request->input('reference'));
+                        $resJSON['status'] = $data['status'];
+                        $resJSON['orderId'] = $data['id_order'];
+                        $resJSON['transactionId'] = $data['id_transaction'];
+                        $data['status'] == 'PENDING' ? $resJSON['pendingReason'] = $data['pending_reason'] : null;
+                        $resJSON['responseCode'] = $data['response_code'];
+                        if (array_key_exists($data['response_code'], Payments::$pendingResponseCode)) {
+                            $resJSON['message'] = Payments::$pendingResponseCode[$data['response_code']];
+                        }
+                        $data['status'] == 'APPROVED' ? $resJSON['trazabilityCode'] = $data['trazability_code'] : null;
+                        $data['status'] == 'APPROVED' ? $resJSON['authorizationCode'] = $data['authorization_code'] : null;
+                        return response()->json($resJSON, 200);
                     }
-                    $data['status'] == 'APPROVED' ? $resJSON['trazabilityCode'] = $data['trazability_code'] : null;
-                    $data['status'] == 'APPROVED' ? $resJSON['authorizationCode'] = $data['authorization_code'] : null;
-                    return response()->json($resJSON, 200);
-                }
 
-            } else if ($request->input('type') == null) {
-                $message = 'Oops! No se recibio un tipo de pago';
+                } else if ($request->input('type') == null) {
+                    $message = 'Oops! No se recibio un tipo de pago';
+                    throw new Exception($message);
+                }
+            } else {
+                $message = 'Oops! el token no coincide';
                 throw new Exception($message);
             }
-            // } else {
-            //     $message = 'Oops! el token no coincide';
-            //     throw new Exception($message);
-            // }
         } catch (Exception $e) {
             $resJSON['errorMessage'] = $e->getMessage();
             return response()->json($resJSON, 422);
@@ -518,7 +518,7 @@ class CheckoutController extends Controller
 
     /**
      * Esta funcion recibe la respuesta del proveedor de pagos PayU y solicita la actualizacion del
-     * estatus de la reserva en globalizador, ademas crea un registro en la base de datos con los 
+     * estatus de la reserva en globalizador, ademas crea un registro en la base de datos con los
      * datos de la respuesta.
      *
      * @param Request $request
@@ -624,7 +624,7 @@ class CheckoutController extends Controller
         $urls = TransactionResponse::select('url_payment_recipt_pdf')->whereNotNull('url_payment_recipt_pdf')->where('id_request_info', $requestId)->get();
         $recipt = null;
 
-        foreach($urls as $url) {
+        foreach ($urls as $url) {
             $recipt = $url['url_payment_recipt_pdf'];
         }
 
@@ -648,7 +648,7 @@ class CheckoutController extends Controller
         $urls = TransactionResponse::select('url_payment_recipt_html')->whereNotNull('url_payment_recipt_html')->where('id_request_info', $requestId)->get();
         $recipt = null;
 
-        foreach($urls as $url) {
+        foreach ($urls as $url) {
             $recipt = $url['url_payment_recipt_html'];
         }
 
