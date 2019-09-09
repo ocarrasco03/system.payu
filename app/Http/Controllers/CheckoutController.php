@@ -561,12 +561,18 @@ class CheckoutController extends Controller
                 'timeout' => 120.0,
             ]);
 
-            $params['status'] = $state;
-            $params['reference'] = $request->reference_sale;
-            $params['transactionId'] = $request->transaction_id;
-            $res_glob = $client->request('POST', '', ['json' => $params]);
+            $res_glob = $client->request('POST', '', [
+                'form_params' => [
+                    'status' => $state,
+                    'reference' => $request->reference_sale,
+                    'transactionId' => $request->transaction_id,
+                ],
+            ]);
+            $body = $res_glob->getBody();
+            $body = json_decode($body);
 
-            Helpers::logResponse($res_glob, 'notify', 'global_log');
+
+            Helpers::logResponse($body->status, 'notify', 'global_log');
 
             return response()->json($response, 200);
 
