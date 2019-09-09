@@ -19,7 +19,7 @@ class CreateRequestInfoTable extends Migration
             $table->integer('id_payer')->unsigned()->nullable();
             $table->string('id_reservation')->nullable();
             $table->string('payment_method')->nullable();
-            $table->string('reference')->nullable();
+            $table->boolean('manual_validation')->default(false);
             $table->timestamps();
 
             $table->foreign('id_system')->references('id')->on('systems')->onDelete('restrict')->onUpdate('restrict');

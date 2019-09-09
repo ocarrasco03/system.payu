@@ -9,15 +9,13 @@ use App\Garflo\Models\TransactionResponse;
 use App\Garflo\Payments;
 use Carbon\Carbon;
 use Exception;
+use GuzzleHttp\Client;
 use Helpers;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\File;
 use InvalidArgumentException;
-use Log;
 use PayUParameters;
 use PayUPayments;
 use Webiny\Component\Crypt\Crypt;
-use GuzzleHttp\Client;
 
 class CheckoutController extends Controller
 {
@@ -78,52 +76,86 @@ class CheckoutController extends Controller
                 'tax_return' => $request->input('tax_return'),
             );
 
-            // if ($token == $request->input('amount')) {
-            if ($request->input('type') == 'cash') {
-                $this->validate($request, [
-                    'reference' => 'required',
-                    'description' => 'required|max:250',
-                    'currency' => 'required|string',
-                    'amount' => 'required|numeric',
-                    'email' => 'required|email',
-                    'name' => 'required|string',
-                    'phone' => 'nullable|numeric',
-                    'payment_method' => 'required',
-                    'tax' => 'nullable|numeric',
-                    'tax_return' => 'nullable|numeric',
-                    'label' => 'required|numeric',
-                ]);
+            if ($token == $request->input('amount')) {
+                if ($request->input('type') == 'cash') {
+                    $this->validate($request, [
+                        'reference' => 'required',
+                        'description' => 'required|max:250',
+                        'currency' => 'required|string',
+                        'amount' => 'required|numeric',
+                        'email' => 'required|email',
+                        'name' => 'required|string',
+                        'phone' => 'nullable|numeric',
+                        'payment_method' => 'required',
+                        'tax' => 'nullable|numeric',
+                        'tax_return' => 'nullable|numeric',
+                        'label' => 'required|numeric',
+                    ]);
 
-                return $this->payWithCash($params);
+                    if (!$this->validateProcess($request->input('reference'))) {
+                        return $this->payWithCash($params);
+                    } else {
+                        $data = $this->validateProcess($request->input('reference'));
+                        $resJSON['status'] = $data['status'];
+                        $resJSON['orderId'] = $data['id_order'];
+                        $resJSON['transactionId'] = $data['id_transaction'];
+                        $data['status'] == 'PENDING' ? $resJSON['pendingReason'] = $data['pending_reason'] : null;
+                        $data['status'] == 'PENDING' ? $resJSON['urlPaymentReceiptHtml'] = $data['url_payment_recipt_html'] : null;
+                        $data['status'] == 'PENDING' ? $resJSON['urlPaymentReceiptPdf'] = $data['url_payment_recipt_pdf'] : null;
+                        $data['status'] == 'PENDING' ? $resJSON['expirationDate'] = Carbon::createFromFormat('Y-m-d H:i:s', $data['created_at'])->addHours(19)->addMinutes(5)->toDateTimeString() : null;
+                        $resJSON['responseCode'] = $data['response_code'];
+                        if (array_key_exists($data['response_code'], Payments::$pendingResponseCode)) {
+                            $resJSON['message'] = Payments::$pendingResponseCode[$data['response_code']];
+                        }
+                        $data['status'] == 'APPROVED' ? $resJSON['trazabilityCode'] = $data['trazability_code'] : null;
+                        $data['status'] == 'APPROVED' ? $resJSON['authorizationCode'] = $data['authorization_code'] : null;
+                        return response()->json($resJSON, 200);
 
-            }
+                    }
 
-            if ($request->input('type') == 'creditCard') {
-                $this->validate($request, [
-                    'reference' => 'required',
-                    'description' => 'required|max:250',
-                    'currency' => 'required|string',
-                    'amount' => 'required|numeric',
-                    'email' => 'required|email',
-                    'name' => 'required|string',
-                    'phone' => 'nullable|numeric',
-                    'payment_method' => 'required',
-                    'credit_card' => 'required|numeric',
-                    'expiration_date' => 'required',
-                    'cvv' => 'required|numeric',
-                    'label' => 'required|numeric',
-                ]);
+                }
 
-                return $this->payWithCreditCard($params);
+                if ($request->input('type') == 'creditCard') {
+                    $this->validate($request, [
+                        'reference' => 'required',
+                        'description' => 'required|max:250',
+                        'currency' => 'required|string',
+                        'amount' => 'required|numeric',
+                        'email' => 'required|email',
+                        'name' => 'required|string',
+                        'phone' => 'nullable|numeric',
+                        'payment_method' => 'required',
+                        'credit_card' => 'required|numeric',
+                        'expiration_date' => 'required',
+                        'cvv' => 'required|numeric',
+                        'label' => 'required|numeric',
+                    ]);
 
-            } else if ($request->input('type') == null) {
-                $message = 'Oops! No se recibio un tipo de pago';
+                    if (!$this->validateProcess($request->input('reference'))) {
+                        return $this->payWithCreditCard($params);
+                    } else {
+                        $data = $this->validateProcess($request->input('reference'));
+                        $resJSON['status'] = $data['status'];
+                        $resJSON['orderId'] = $data['id_order'];
+                        $resJSON['transactionId'] = $data['id_transaction'];
+                        $data['status'] == 'PENDING' ? $resJSON['pendingReason'] = $data['pending_reason'] : null;
+                        $resJSON['responseCode'] = $data['response_code'];
+                        if (array_key_exists($data['response_code'], Payments::$pendingResponseCode)) {
+                            $resJSON['message'] = Payments::$pendingResponseCode[$data['response_code']];
+                        }
+                        $data['status'] == 'APPROVED' ? $resJSON['trazabilityCode'] = $data['trazability_code'] : null;
+                        $data['status'] == 'APPROVED' ? $resJSON['authorizationCode'] = $data['authorization_code'] : null;
+                        return response()->json($resJSON, 200);
+                    }
+
+                } else if ($request->input('type') == null) {
+                    $message = 'Oops! No se recibio un tipo de pago';
+                    throw new Exception($message);
+                }
+            } else {
+                $message = 'Oops! el token no coincide';
                 throw new Exception($message);
             }
-            // } else {
-            //     $message = 'Oops! el token no coincide';
-            //     throw new Exception($message);
-            // }
         } catch (Exception $e) {
             $resJSON['errorMessage'] = $e->getMessage();
             return response()->json($resJSON, 422);
@@ -174,8 +206,7 @@ class CheckoutController extends Controller
                 PayUParameters::PAYER_DNI => $request['dni'],
                 PayUParameters::PAYMENT_METHOD => $request['payment_method'],
                 PayUParameters::COUNTRY => Payments::getCountry(),
-                PayUParameters::EXPIRATION_DATE => substr(date_format(Carbon::now()->addHours(24)->addMinutes(5), 'c'), 0, -6),
-                // PayUParameters::EXPIRATION_DATE => substr(date_format(Carbon::now()->addHours(1), 'c'), 0, -6),
+                PayUParameters::EXPIRATION_DATE => substr(date_format(Carbon::now()->addHours(19)->addMinutes(5), 'c'), 0, -6),
                 PayUParameters::IP_ADDRESS => Helpers::getUserIP(),
                 PayUParameters::NOTIFY_URL => 'https://api.rodason.com/api/v1/notify/' . $requestId,
             );
@@ -183,10 +214,7 @@ class CheckoutController extends Controller
             $response = PayUPayments::doAuthorizationAndCapture($data);
 
             if ($response) {
-                if (!File::isDirectory('payWithCash')) {
-                    mkdir('payWithCash', 0755);
-                }
-                Helpers::logResponse($response, 'payWithCash\\payWithCash', $data);
+                Helpers::logResponse($response, 'payWithCash', 'payWithCash', $data);
                 if ($response->transactionResponse->state == 'PENDING') {
                     $resJSON['status'] = $response->transactionResponse->state;
                     $resJSON['orderId'] = $response->transactionResponse->orderId;
@@ -262,11 +290,7 @@ class CheckoutController extends Controller
 
             return response()->json($resJSON, 200);
         } catch (Exception $e) {
-            if (!File::isDirectory('payWithCash')) {
-                mkdir('payWithCash', 0755);
-            }
-
-            Helpers::logResponse($e->getMessage(), 'payWithCash\\log_', $data);
+            Helpers::logResponse($e->getMessage(), 'payWithCash', 'log', $data);
 
             $resJSON['errorMessage'] = $e->getMessage();
             return response()->json($resJSON, 409);
@@ -282,10 +306,6 @@ class CheckoutController extends Controller
      */
     public function payWithCreditCard($request)
     {
-        if (!File::isDirectory('payWithCard')) {
-            mkdir('payWithCard', 0755);
-        }
-
         try {
             if (!PayerData::PayerExist($request['email'])) {
                 $payerId = $this->storePayer($request);
@@ -345,7 +365,7 @@ class CheckoutController extends Controller
             $response = PayUPayments::doAuthorizationAndCapture($data);
 
             if ($response) {
-                Helpers::logResponse($response, 'payWithCard\\payWithCard_', $data);
+                Helpers::logResponse($response, 'payWithCard', 'payWithCard', $data);
 
                 if ($response->transactionResponse->state == 'PENDING') {
                     $resJSON['status'] = $response->transactionResponse->state;
@@ -406,7 +426,7 @@ class CheckoutController extends Controller
             return response()->json($resJSON, 200);
         } catch (Exception $e) {
             $resJSON['errorMessage'] = $e->getMessage();
-            Helpers::logResponse($e->getMessage(), 'payWithCard\\log_', $data);
+            Helpers::logResponse($e->getMessage(), 'payWithCard', 'log', $data);
             return response()->json($resJSON, 409);
         }
     }
@@ -420,9 +440,9 @@ class CheckoutController extends Controller
     public function storePayer($params)
     {
         $data = PayerData::create([
-            'nombre_completo' => $params['name'],
+            'full_name' => $params['name'],
             'email' => $params['email'],
-            'telefono' => $params['phone'],
+            'phone' => $params['phone'],
             'address' => $params['address'],
             'city' => $params['city'],
             'state' => $params['state'],
@@ -436,10 +456,11 @@ class CheckoutController extends Controller
     public function storeRequestInfo($params, $idPayer)
     {
         $data = RequestInfo::create([
-            'id_systems' => $params['label'],
+            'id_system' => $params['label'],
             'id_payer' => $idPayer,
-            'tipo_pago' => $params['payment_method'],
-            'id_reservacion' => $params['reference'],
+            'id_reservation' => $params['reference'],
+            'payment_method' => $params['payment_method'],
+            'manual_validation' => false,
         ]);
 
         return $data->id;
@@ -461,16 +482,22 @@ class CheckoutController extends Controller
 
     }
 
-    public function storeTransaction($response, $idRequestInfo)
+    public function storeTransaction($response, $idRequestInfo, $globalStatus = null)
     {
         $orderId = array_key_exists('orderId', $response->transactionResponse) ? $response->transactionResponse->orderId : null;
         $transactionId = array_key_exists('transactionId', $response->transactionResponse) ? $response->transactionResponse->transactionId : null;
         $responseCode = array_key_exists('responseCode', $response->transactionResponse) ? $response->transactionResponse->responseCode : null;
         $pendingReason = array_key_exists('pendingReason', $response->transactionResponse) ? $response->transactionResponse->pendingReason : null;
+        $authorizationCode = array_key_exists('authorization_code', $response->transactionResponse) ? $response->transactionResponse->authorizationCode : null;
+        $trazabilityCode = array_key_exists('trazability_code', $response->transactionResponse) ? $response->transactionResponse->trazabilityCode : null;
         $urlPaymentReciptHtml = null;
+        $urlPaymentReciptPdf = null;
         if (array_key_exists('extraParameters', $response->transactionResponse)) {
             if (array_key_exists('URL_PAYMENT_RECEIPT_HTML', $response->transactionResponse->extraParameters)) {
                 $urlPaymentReciptHtml = $response->transactionResponse->extraParameters->URL_PAYMENT_RECEIPT_HTML;
+            }
+            if (array_key_exists('URL_PAYMENT_RECEIPT_PDF', $response->transactionResponse->extraParameters)) {
+                $urlPaymentReciptPdf = $response->transactionResponse->extraParameters->URL_PAYMENT_RECEIPT_PDF;
             }
         }
 
@@ -482,19 +509,27 @@ class CheckoutController extends Controller
             'response_code' => $responseCode,
             'pending_reason' => $pendingReason,
             'url_payment_recipt_html' => $urlPaymentReciptHtml,
+            'url_payment_recipt_pdf' => $urlPaymentReciptPdf,
+            'authorization_code' => $authorizationCode,
+            'trazability_code' => $trazabilityCode,
+            'global_update' => $globalStatus,
         ]);
     }
 
+    /**
+     * Esta funcion recibe la respuesta del proveedor de pagos PayU y solicita la actualizacion del
+     * estatus de la reserva en globalizador, ademas crea un registro en la base de datos con los
+     * datos de la respuesta.
+     *
+     * @param Request $request
+     * @param int $id
+     * @return void
+     */
     public function notify(Request $request, $id)
     {
-
-        if (!File::isDirectory('notify')) {
-            mkdir('notify', 0755);
-        }
-
         try {
 
-            Helpers::logResponse($request->all(), 'notify\\notify');
+            Helpers::logResponse($request->all(), 'notify', 'notify');
 
             $state = null;
 
@@ -520,23 +555,107 @@ class CheckoutController extends Controller
             );
 
             $this->storeTransaction($response, $id);
-            
+
             $client = new Client([
-                'base_uri' => 'http: //www.systemtour.demo/mx/api/confirmation/update-reserva.php',
+                'base_uri' => 'http://www.systemtour.demo/mx/api/confirmation/update-reserva.php',
                 'timeout' => 120.0,
             ]);
 
             $params['status'] = $state;
+            $params['reference'] = $request->reference_sale;
+            $params['transactionId'] = $request->transaction_id;
             $res_glob = $client->request('POST', '', ['json' => $params]);
 
+            Helpers::logResponse($res_glob, 'notify', 'global_log');
+
+            return response()->json($response, 200);
 
         } catch (Exception $e) {
-            Helpers::logResponse($e->getMessage(), 'notify\\log_');
-            Helpers::logResponse($response, 'notify\\log_');
-
+            Helpers::logResponse($e->getMessage(), 'notify', 'log');
+            Helpers::logResponse($response, 'notify', 'log');
+            return response()->json($response, 409);
         }
 
-        return response()->json($response, 200);
+    }
+
+    /**
+     * This function validates the reference code doesn't have previous transactions
+     *
+     * @param string $reference
+     * @return bool
+     */
+    public function validateProcess($reference)
+    {
+        if (RequestInfo::RequestExist($reference)) {
+            $reqId = RequestInfo::getId($reference);
+            foreach ($reqId as $data) {
+                $reqId = $data['id'];
+            }
+
+            if (TransactionResponse::requestHasTransactions($reqId)) {
+                $transactions = TransactionResponse::getTransactionStatusByRequest($reqId);
+                foreach ($transactions as $data) {
+                    if ($data['status'] == 'PENDING' || $data['status'] == 'APPROVED') {
+                        return $data;
+                    }
+                }
+
+                return false;
+            }
+
+            return false;
+        }
+
+        return false;
+    }
+
+    /**
+     * This function returns the URL recipt on PDF
+     *
+     * @param string $reference
+     * @return string
+     */
+    public function getPDFRecipt($reference)
+    {
+        $requestId = RequestInfo::getId($reference);
+        foreach ($requestId as $data) {
+            $requestId = $data['id'];
+        }
+        $urls = TransactionResponse::select('url_payment_recipt_pdf')->whereNotNull('url_payment_recipt_pdf')->where('id_request_info', $requestId)->get();
+        $recipt = null;
+
+        foreach ($urls as $url) {
+            $recipt = $url['url_payment_recipt_pdf'];
+        }
+
+        $resJSON['urlPaymentReceiptPdf'] = $recipt;
+
+        return response()->json($resJSON, 200);
+    }
+
+    /**
+     * This function returns the URL recipt on HTML
+     *
+     * @param string $reference
+     * @return string
+     */
+    public function getHTMLRecipt($reference)
+    {
+        $requestId = RequestInfo::getId($reference);
+        foreach ($requestId as $data) {
+            $requestId = $data['id'];
+        }
+        $urls = TransactionResponse::select('url_payment_recipt_html')->whereNotNull('url_payment_recipt_html')->where('id_request_info', $requestId)->get();
+        $recipt = null;
+
+        foreach ($urls as $url) {
+            $recipt = $url['url_payment_recipt_html'];
+        }
+
+        $resJSON['urlPaymentReceiptHtml'] = $recipt;
+
+        return response()->json($resJSON, 200);
+
     }
 
 }

@@ -17,7 +17,7 @@ class CreatePayerDataTable extends Migration
             $table->increments('id');
             $table->string('full_name')->nullable();
             $table->string('email')->unique()->nullable();
-            $table->integer('phone',  11)->nullable();
+            $table->integer('phone')->nullable();
             $table->string('address')->nullable();
             $table->string('city')->nullable();
             $table->string('state')->nullable();
