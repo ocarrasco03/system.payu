@@ -9,15 +9,13 @@ use App\Garflo\Models\TransactionResponse;
 use App\Garflo\Payments;
 use Carbon\Carbon;
 use Exception;
+use GuzzleHttp\Client;
 use Helpers;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\File;
 use InvalidArgumentException;
-use Log;
 use PayUParameters;
 use PayUPayments;
 use Webiny\Component\Crypt\Crypt;
-use GuzzleHttp\Client;
 
 class CheckoutController extends Controller
 {
@@ -94,7 +92,26 @@ class CheckoutController extends Controller
                     'label' => 'required|numeric',
                 ]);
 
-                return $this->payWithCash($params);
+                if (!$this->validateProcess($request->input('reference'))) {
+                    return $this->payWithCash($params);
+                } else {
+                    $data = $this->validateProcess($request->input('reference'));
+                    $resJSON['status'] = $data['status'];
+                    $resJSON['orderId'] = $data['id_order'];
+                    $resJSON['transactionId'] = $data['id_transaction'];
+                    $data['status'] == 'PENDING' ? $resJSON['pendingReason'] = $data['pending_reason'] : null;
+                    $data['status'] == 'PENDING' ? $resJSON['urlPaymentReceiptHtml'] = $data['url_payment_recipt_html'] : null;
+                    $data['status'] == 'PENDING' ? $resJSON['urlPaymentReceiptPdf'] = $data['url_payment_recipt_pdf'] : null;
+                    $data['status'] == 'PENDING' ? $resJSON['expirationDate'] = Carbon::createFromFormat('Y-m-d H:i:s', $data['created_at'])->addHours(19)->addMinutes(5)->toDateTimeString() : null;
+                    $resJSON['responseCode'] = $data['response_code'];
+                    if (array_key_exists($data['response_code'], Payments::$pendingResponseCode)) {
+                        $resJSON['message'] = Payments::$pendingResponseCode[$data['response_code']];
+                    }
+                    $data['status'] == 'APPROVED' ? $resJSON['trazabilityCode'] = $data['trazability_code'] : null;
+                    $data['status'] == 'APPROVED' ? $resJSON['authorizationCode'] = $data['authorization_code'] : null;
+                    return response()->json($resJSON, 200);
+
+                }
 
             }
 
@@ -114,7 +131,22 @@ class CheckoutController extends Controller
                     'label' => 'required|numeric',
                 ]);
 
-                return $this->payWithCreditCard($params);
+                if (!$this->validateProcess($request->input('reference'))) {
+                    return $this->payWithCreditCard($params);
+                } else {
+                    $data = $this->validateProcess($request->input('reference'));
+                    $resJSON['status'] = $data['status'];
+                    $resJSON['orderId'] = $data['id_order'];
+                    $resJSON['transactionId'] = $data['id_transaction'];
+                    $data['status'] == 'PENDING' ? $resJSON['pendingReason'] = $data['pending_reason'] : null;
+                    $resJSON['responseCode'] = $data['response_code'];
+                    if (array_key_exists($data['response_code'], Payments::$pendingResponseCode)) {
+                        $resJSON['message'] = Payments::$pendingResponseCode[$data['response_code']];
+                    }
+                    $data['status'] == 'APPROVED' ? $resJSON['trazabilityCode'] = $data['trazability_code'] : null;
+                    $data['status'] == 'APPROVED' ? $resJSON['authorizationCode'] = $data['authorization_code'] : null;
+                    return response()->json($resJSON, 200);
+                }
 
             } else if ($request->input('type') == null) {
                 $message = 'Oops! No se recibio un tipo de pago';
@@ -174,8 +206,7 @@ class CheckoutController extends Controller
                 PayUParameters::PAYER_DNI => $request['dni'],
                 PayUParameters::PAYMENT_METHOD => $request['payment_method'],
                 PayUParameters::COUNTRY => Payments::getCountry(),
-                PayUParameters::EXPIRATION_DATE => substr(date_format(Carbon::now()->addHours(24)->addMinutes(5), 'c'), 0, -6),
-                // PayUParameters::EXPIRATION_DATE => substr(date_format(Carbon::now()->addHours(1), 'c'), 0, -6),
+                PayUParameters::EXPIRATION_DATE => substr(date_format(Carbon::now()->addHours(19)->addMinutes(5), 'c'), 0, -6),
                 PayUParameters::IP_ADDRESS => Helpers::getUserIP(),
                 PayUParameters::NOTIFY_URL => 'https://api.rodason.com/api/v1/notify/' . $requestId,
             );
@@ -477,6 +508,8 @@ class CheckoutController extends Controller
             'pending_reason' => $pendingReason,
             'url_payment_recipt_html' => $urlPaymentReciptHtml,
             'url_payment_recipt_pdf' => $urlPaymentReciptPdf,
+            'authorization_code' => null,
+            'trazability_code' => null,
             'global_update' => $globalStatus,
         ]);
     }
@@ -511,7 +544,7 @@ class CheckoutController extends Controller
             );
 
             $this->storeTransaction($response, $id);
-            
+
             $client = new Client([
                 'base_uri' => 'http://www.systemtour.demo/mx/api/confirmation/update-reserva.php',
                 'timeout' => 120.0,
@@ -525,10 +558,10 @@ class CheckoutController extends Controller
             Helpers::logResponse($res_glob, 'notify', 'global_log');
 
             return response()->json($response, 200);
-            
+
         } catch (Exception $e) {
             Helpers::logResponse($e->getMessage(), 'notify', 'log');
-            Helpers::logResponse($response, 'notify','log');
+            Helpers::logResponse($response, 'notify', 'log');
             return response()->json($response, 409);
         }
 
@@ -545,7 +578,7 @@ class CheckoutController extends Controller
             if (TransactionResponse::requestHasTransactions($reqId)) {
                 $transactions = TransactionResponse::getTransactionStatusByRequest($reqId);
                 foreach ($transactions as $data) {
-                    if ($data['status'] == 'PENDING' || $data['status'] == 'APPROVED' ) {
+                    if ($data['status'] == 'PENDING' || $data['status'] == 'APPROVED') {
                         return $data;
                     }
                 }
@@ -557,6 +590,13 @@ class CheckoutController extends Controller
         }
 
         return false;
+    }
+
+    public function getPDFRecipt($reference)
+    {
+        $resJSON['urlPaymentReceiptPdf'] = RequestInfo::getReciptPDF($reference);
+
+        return response()->json($resJSON, 200);
     }
 
 }
