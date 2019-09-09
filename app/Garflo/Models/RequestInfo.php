@@ -72,14 +72,10 @@ class RequestInfo extends Model
         return false;
     }
 
-    public static function scopegetId($query, $reference)
+    public static function scopeGetId($query, $reference)
     {
         return $query->select('id')->where('id_reservation', $reference)->get();
     }
 
-    public static function scopegetReciptPDF($query, $reference)
-    {
-        $recipt = $query->with('transactionResponse')->where('id_reservation', $reference)->get();
-        return $recipt;
-    }
+    
 }
