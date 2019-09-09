@@ -36,6 +36,8 @@ $router->group(['prefix' => 'api/v1'], function () use ($router) {
 
     $router->post('/checkout', 'CheckoutController@index');
     $router->post('/notify/{id}', 'CheckoutController@notify');
+    $router->get('/recipt/html/{reference}', 'CheckoutController@getHTMLRecipt');
+    $router->get('/recipt/pdf/{reference}', 'CheckoutController@getPDFRecipt');
     // $router->get('/reports', 'ReportController@index');
     // $router->post('/reports/{id}', 'ReportsController@show');
 
