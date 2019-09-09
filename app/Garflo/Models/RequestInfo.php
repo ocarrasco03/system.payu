@@ -24,7 +24,7 @@ class RequestInfo extends Model
      */
     public function systems()
     {
-        return $this->belongsTo('App\Garflo\Models\System', 'id');
+        return $this->belongsTo(System::class, 'id');
     }
 
     /**
@@ -34,7 +34,7 @@ class RequestInfo extends Model
      */
     public function paymentInfo()
     {
-        return $this->hasMany('App\Garflo\Models\PaymentInfo', 'id_request_info');
+        return $this->hasMany(PaymentInfo::class, 'id_request_info');
     }
 
     /**
@@ -44,7 +44,7 @@ class RequestInfo extends Model
      */
     public function payerData()
     {
-        return $this->hasMany('App\Garflo\Models\PayerData', 'id_request_info');
+        return $this->hasMany(PayerData::class, 'id_request_info');
     }
 
     /**
@@ -75,5 +75,11 @@ class RequestInfo extends Model
     public static function scopegetId($query, $reference)
     {
         return $query->select('id')->where('id_reservation', $reference)->get();
+    }
+
+    public static function scopegetReciptPDF($query, $reference)
+    {
+        $recipt = $query->with('transactionResponse')->where('id_reservation', $reference)->get();
+        return $recipt;
     }
 }

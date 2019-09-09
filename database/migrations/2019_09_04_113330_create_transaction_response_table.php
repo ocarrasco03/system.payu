@@ -23,6 +23,8 @@ class CreateTransactionResponseTable extends Migration
             $table->string('pending_reason')->nullable();
             $table->string('url_payment_recipt_html')->nullable();
             $table->string('url_payment_recipt_pdf')->nullable();
+            $table->string('authorization_code')->nullable();
+            $table->string('trazability_code')->nullable();
             $table->string('global_update')->nullable();
             $table->timestamps();
 
