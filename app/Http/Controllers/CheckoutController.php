@@ -488,6 +488,8 @@ class CheckoutController extends Controller
         $transactionId = array_key_exists('transactionId', $response->transactionResponse) ? $response->transactionResponse->transactionId : null;
         $responseCode = array_key_exists('responseCode', $response->transactionResponse) ? $response->transactionResponse->responseCode : null;
         $pendingReason = array_key_exists('pendingReason', $response->transactionResponse) ? $response->transactionResponse->pendingReason : null;
+        $authorizationCode = array_key_exists('authorization_code', $response->transactionResponse) ? $response->transactionResponse->authorizationCode : null;
+        $trazabilityCode = array_key_exists('trazability_code', $response->transactionResponse) ? $response->transactionResponse->trazabilityCode : null;
         $urlPaymentReciptHtml = null;
         $urlPaymentReciptPdf = null;
         if (array_key_exists('extraParameters', $response->transactionResponse)) {
@@ -508,12 +510,21 @@ class CheckoutController extends Controller
             'pending_reason' => $pendingReason,
             'url_payment_recipt_html' => $urlPaymentReciptHtml,
             'url_payment_recipt_pdf' => $urlPaymentReciptPdf,
-            'authorization_code' => null,
-            'trazability_code' => null,
+            'authorization_code' => $authorizationCode,
+            'trazability_code' => $trazabilityCode,
             'global_update' => $globalStatus,
         ]);
     }
 
+    /**
+     * Esta funcion recibe la respuesta del proveedor de pagos PayU y solicita la actualizacion del
+     * estatus de la reserva en globalizador, ademas crea un registro en la base de datos con los 
+     * datos de la respuesta.
+     *
+     * @param Request $request
+     * @param int $id
+     * @return void
+     */
     public function notify(Request $request, $id)
     {
         try {
@@ -567,6 +578,12 @@ class CheckoutController extends Controller
 
     }
 
+    /**
+     * This function validates the reference code doesn't have previous transactions
+     *
+     * @param string $reference
+     * @return bool
+     */
     public function validateProcess($reference)
     {
         if (RequestInfo::RequestExist($reference)) {
@@ -592,11 +609,53 @@ class CheckoutController extends Controller
         return false;
     }
 
+    /**
+     * This function returns the URL recipt on PDF
+     *
+     * @param string $reference
+     * @return string
+     */
     public function getPDFRecipt($reference)
     {
-        $resJSON['urlPaymentReceiptPdf'] = RequestInfo::getReciptPDF($reference);
+        $requestId = RequestInfo::getId($reference);
+        foreach ($requestId as $data) {
+            $requestId = $data['id'];
+        }
+        $urls = TransactionResponse::select('url_payment_recipt_pdf')->whereNotNull('url_payment_recipt_pdf')->where('id_request_info', $requestId)->get();
+        $recipt = null;
+
+        foreach($urls as $url) {
+            $recipt = $url['url_payment_recipt_pdf'];
+        }
+
+        $resJSON['urlPaymentReceiptPdf'] = $recipt;
 
         return response()->json($resJSON, 200);
+    }
+
+    /**
+     * This function returns the URL recipt on HTML
+     *
+     * @param string $reference
+     * @return string
+     */
+    public function getHTMLRecipt($reference)
+    {
+        $requestId = RequestInfo::getId($reference);
+        foreach ($requestId as $data) {
+            $requestId = $data['id'];
+        }
+        $urls = TransactionResponse::select('url_payment_recipt_html')->whereNotNull('url_payment_recipt_html')->where('id_request_info', $requestId)->get();
+        $recipt = null;
+
+        foreach($urls as $url) {
+            $recipt = $url['url_payment_recipt_html'];
+        }
+
+        $resJSON['urlPaymentReceiptHtml'] = $recipt;
+
+        return response()->json($resJSON, 200);
+
     }
 
 }
