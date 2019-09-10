@@ -572,7 +572,7 @@ class CheckoutController extends Controller
             $body = json_decode($body);
 
 
-            Helpers::logResponse($body->status, 'notify', 'global_log');
+            Helpers::logResponse($body, 'notify', 'global_log');
 
             return response()->json($response, 200);
 
