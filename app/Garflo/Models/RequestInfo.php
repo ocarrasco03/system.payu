@@ -14,7 +14,7 @@ class RequestInfo extends Model
      * @var array
      */
     protected $fillable = [
-        'id_systems', 'id_payer', 'tipo_pago', 'id_reservacion',
+        'id_system', 'id_payer', 'id_reservation', 'payment_method', 'manual_validation',
     ];
 
     /**
@@ -24,7 +24,7 @@ class RequestInfo extends Model
      */
     public function systems()
     {
-        return $this->belongsTo('App\Garflo\Models\Systems', 'id');
+        return $this->belongsTo(System::class, 'id');
     }
 
     /**
@@ -34,7 +34,7 @@ class RequestInfo extends Model
      */
     public function paymentInfo()
     {
-        return $this->hasMany('App\Garflo\Models\PaymentInfo', 'id_request_info');
+        return $this->hasMany(PaymentInfo::class, 'id_request_info');
     }
 
     /**
@@ -44,7 +44,7 @@ class RequestInfo extends Model
      */
     public function payerData()
     {
-        return $this->hasMany('App\Garflo\Models\PayerData', 'id_request_info');
+        return $this->hasMany(PayerData::class, 'id_request_info');
     }
 
     /**
@@ -54,7 +54,7 @@ class RequestInfo extends Model
      */
     public function transactionResponse()
     {
-        return $this->hasMany('App\Garflo\Models\TransactionResponse', 'id_request_info');
+        return $this->hasMany(TransactionResponse::class, 'id_request_info');
     }
 
     /**
@@ -65,15 +65,17 @@ class RequestInfo extends Model
      */
     public static function scopeRequestExist($query, $reference)
     {
-        if ($query->where('id_reservacion', $reference)->count() > 0) {
+        if ($query->where('id_reservation', $reference)->count() > 0) {
             return true;
         }
 
         return false;
     }
 
-    public static function scopegetId($query, $reference)
+    public static function scopeGetId($query, $reference)
     {
-        return $query->select('id')->where('id_reservacion', $reference)->get();
+        return $query->select('id')->where('id_reservation', $reference)->get();
     }
+
+    
 }

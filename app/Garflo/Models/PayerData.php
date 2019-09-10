@@ -14,7 +14,7 @@ class PayerData extends Model
      * @var array
      */
     protected $fillable = [
-        'nombre_completo', 'email', 'telefono', 'address', 'city', 'state', 'country', 'postal_code',
+        'full_name', 'email', 'phone', 'address', 'city', 'state', 'country', 'zip_code',
     ];
 
     /**
@@ -24,7 +24,7 @@ class PayerData extends Model
      */
     public function requestInfo()
     {
-        return $this->belongsTo('App\Garflo\Models\RequestInfo', 'id');
+        return $this->belongsTo(RequestInfo::class, 'id');
     }
 
     /**

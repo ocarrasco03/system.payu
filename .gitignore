@@ -3,3 +3,7 @@
 Homestead.json
 Homestead.yaml
 .env
+/public/log
+.vscode
+/public/payWithCard/*
+/public/payWithCash/*

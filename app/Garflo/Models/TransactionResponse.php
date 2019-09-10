@@ -14,7 +14,7 @@ class TransactionResponse extends Model
      * @var array
      */
     protected $fillable = [
-        'id_request_info', 'id_order', 'id_transaction', 'status', 'response_code', 'pending_reason', 'url_payment_recipt_html',
+        'id_request_info', 'id_order', 'id_transaction', 'status', 'response_code', 'pending_reason', 'url_payment_recipt_html', 'url_payment_recipt_pdf', 'authorization_code', 'trazability_code', 'global_update',
     ];
 
     /**
@@ -24,7 +24,21 @@ class TransactionResponse extends Model
      */
     public function requestInfo()
     {
-        return $this->belongsTo('App\Garflo\Models\RequestInfo', 'id');
+        return $this->belongsTo(RequestInfo::class, 'id');
+    }
+
+    public static function scopegetTransactionStatusByRequest($query, $request)
+    {
+        return $query->where('id_request_info', $request)->get();
+    }
+
+    public static function scoperequestHasTransactions($query, $request)
+    {
+        if ($query->where('id_request_info', $request)->count() > 0) {
+            return true;
+        }
+
+        return false;
     }
 
 }
