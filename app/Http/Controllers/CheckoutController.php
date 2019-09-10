@@ -554,8 +554,6 @@ class CheckoutController extends Controller
                 ),
             );
 
-            $this->storeTransaction($response, $id);
-
             $client = new Client([
                 'base_uri' => 'http://www.systemtour.demo/mx/api/confirmation/update-reserva.php',
                 'timeout' => 120.0,
@@ -571,8 +569,8 @@ class CheckoutController extends Controller
             $body = $res_glob->getBody();
             $body = json_decode($body);
 
-
             Helpers::logResponse($body, 'notify', 'global_log');
+            $this->storeTransaction($response, $id, $body->message);
 
             return response()->json($response, 200);
 
