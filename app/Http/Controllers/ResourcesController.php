@@ -15,7 +15,7 @@ class ResourcesController extends Controller
      * @param Request $request
      * @return Response
      */
-    public function storePayer($request)
+    public static function storePayer($request)
     {
         $data = PayerData::create([
             'full_name' => $request['name'],
@@ -38,7 +38,7 @@ class ResourcesController extends Controller
      * @param int $id
      * @return Response
      */
-    public function storeRequestInfo($request, $id)
+    public static function storeRequestInfo($request, $id)
     {
         $data = RequestInfo::create([
             'id_system' => $request['label'],
@@ -59,7 +59,7 @@ class ResourcesController extends Controller
      * @param DateTimestamp $expiration (Optional)
      * @return Response
      */
-    public function storePaymentInfo($request, $id, $expiration = null)
+    public static function storePaymentInfo($request, $id, $expiration = null)
     {
         $data = PaymentInfo::create([
             'id_request_info' => $id,
@@ -83,7 +83,7 @@ class ResourcesController extends Controller
      * @param string $globalStatus (Optional)
      * @return Response
      */
-    public function storeTransaction($request, $id, $globalStatus = null)
+    public static function storeTransaction($request, $id, $globalStatus = null)
     {
         $orderId = array_key_exists('orderId', $request->transactionResponse) ? $request->transactionResponse->orderId : null;
         $transactionId = array_key_exists('transactionId', $request->transactionResponse) ? $request->transactionResponse->transactionId : null;
@@ -123,7 +123,7 @@ class ResourcesController extends Controller
      * @param int $id
      * @return Response
      */
-    public function updateManualPay($id)
+    public static function updateManualPay($id)
     {
         return RequestInfo::find($id)->update(['manual_validation' => true]);
     }
