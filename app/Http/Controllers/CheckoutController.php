@@ -376,6 +376,7 @@ class CheckoutController extends Controller
                     if (array_key_exists($response->transactionResponse->responseCode, Payments::$pendingResponseCode)) {
                         $resJSON['message'] = Payments::$pendingResponseCode[$response->transactionResponse->responseCode];
                     }
+                    ResourcesController::updateManualPay($requestId);
                 } else if ($response->transactionResponse->state == 'APPROVED') {
                     $resJSON['status'] = $response->transactionResponse->state;
                     $resJSON['orderId'] = $response->transactionResponse->orderId;
