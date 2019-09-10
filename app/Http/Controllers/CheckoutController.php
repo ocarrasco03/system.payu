@@ -7,6 +7,7 @@ use App\Garflo\Models\PaymentInfo;
 use App\Garflo\Models\RequestInfo;
 use App\Garflo\Models\TransactionResponse;
 use App\Garflo\Payments;
+use App\Http\Controllers\ResourcesController;
 use Carbon\Carbon;
 use Exception;
 use GuzzleHttp\Client;
@@ -178,7 +179,7 @@ class CheckoutController extends Controller
 
         try {
             if (!PayerData::PayerExist($request['email'])) {
-                $payerId = $this->storePayer($request);
+                $payerId = ResourcesController::storePayer($request);
             } else {
                 $payerId = PayerData::GetId($request['email']);
                 foreach ($payerId as $data) {
@@ -187,7 +188,7 @@ class CheckoutController extends Controller
             }
 
             if (!RequestInfo::RequestExist($request['reference'])) {
-                $requestId = $this->storeRequestInfo($request, $payerId);
+                $requestId = ResourcesController::storeRequestInfo($request, $payerId);
             } else {
                 $requestId = RequestInfo::getId($request['reference']);
                 foreach ($requestId as $data) {
@@ -276,10 +277,10 @@ class CheckoutController extends Controller
                         $expiration = (array_key_exists('EXPIRATION_DATE', $response->transactionResponse->extraParameters)) ? $response->transactionResponse->extraParameters->EXPIRATION_DATE : null;
                     }
 
-                    $this->storePaymentInfo($request, $requestId, $expiration);
+                    ResourcesController::storePaymentInfo($request, $requestId, $expiration);
                 }
 
-                $this->storeTransaction($response, $requestId);
+                ResourcesController::storeTransaction($response, $requestId);
 
             } else {
                 $resJSON['status'] = 'error';
@@ -308,7 +309,7 @@ class CheckoutController extends Controller
     {
         try {
             if (!PayerData::PayerExist($request['email'])) {
-                $payerId = $this->storePayer($request);
+                $payerId = ResourcesController::storePayer($request);
             } else {
                 $payerId = PayerData::GetId($request['email']);
                 foreach ($payerId as $data) {
@@ -317,7 +318,7 @@ class CheckoutController extends Controller
             }
 
             if (!RequestInfo::RequestExist($request['reference'])) {
-                $requestId = $this->storeRequestInfo($request, $payerId);
+                $requestId = ResourcesController::storeRequestInfo($request, $payerId);
             } else {
                 $requestId = RequestInfo::getId($request['reference']);
                 foreach ($requestId as $data) {
@@ -412,10 +413,10 @@ class CheckoutController extends Controller
                         $expiration = (array_key_exists('EXPIRATION_DATE', $response->transactionResponse->extraParameters)) ? $response->transactionResponse->extraParameters->EXPIRATION_DATE : null;
                     }
 
-                    $this->storePaymentInfo($request, $requestId, $expiration);
+                    ResourcesController::storePaymentInfo($request, $requestId, $expiration);
                 }
 
-                $this->storeTransaction($response, $requestId);
+                ResourcesController::storeTransaction($response, $requestId);
 
             } else {
                 $resJSON['status'] = 'error';
@@ -430,91 +431,6 @@ class CheckoutController extends Controller
             Helpers::logResponse($e->getMessage(), 'payWithCard', 'log', $data);
             return response()->json($resJSON, 409);
         }
-    }
-
-    /**
-     * Stores a newly created resource in storage.
-     *
-     * @param array $params
-     * @return void
-     */
-    public function storePayer($params)
-    {
-        $data = PayerData::create([
-            'full_name' => $params['name'],
-            'email' => $params['email'],
-            'phone' => $params['phone'],
-            'address' => $params['address'],
-            'city' => $params['city'],
-            'state' => $params['state'],
-            'country' => $params['country'],
-            'zip_code' => $params['zip_code'],
-        ]);
-
-        return $data->id;
-    }
-
-    public function storeRequestInfo($params, $idPayer)
-    {
-        $data = RequestInfo::create([
-            'id_system' => $params['label'],
-            'id_payer' => $idPayer,
-            'id_reservation' => $params['reference'],
-            'payment_method' => $params['payment_method'],
-            'manual_validation' => false,
-        ]);
-
-        return $data->id;
-    }
-
-    public function storePaymentInfo($params, $idRequestInfo, $expiration = null)
-    {
-        $data = PaymentInfo::create([
-            'id_request_info' => $idRequestInfo,
-            'reference_code' => 'reservacion_' . $params['reference'],
-            'description' => $params['description'],
-            'value' => $params['amount'],
-            'currency' => $params['currency'],
-            'payment_method' => $params['payment_method'],
-            'expiration_date' => $expiration,
-            'tax_value' => $params['tax'],
-            'tax_return_base' => $params['tax_return'],
-        ]);
-
-    }
-
-    public function storeTransaction($response, $idRequestInfo, $globalStatus = null)
-    {
-        $orderId = array_key_exists('orderId', $response->transactionResponse) ? $response->transactionResponse->orderId : null;
-        $transactionId = array_key_exists('transactionId', $response->transactionResponse) ? $response->transactionResponse->transactionId : null;
-        $responseCode = array_key_exists('responseCode', $response->transactionResponse) ? $response->transactionResponse->responseCode : null;
-        $pendingReason = array_key_exists('pendingReason', $response->transactionResponse) ? $response->transactionResponse->pendingReason : null;
-        $authorizationCode = array_key_exists('authorization_code', $response->transactionResponse) ? $response->transactionResponse->authorizationCode : null;
-        $trazabilityCode = array_key_exists('trazability_code', $response->transactionResponse) ? $response->transactionResponse->trazabilityCode : null;
-        $urlPaymentReciptHtml = null;
-        $urlPaymentReciptPdf = null;
-        if (array_key_exists('extraParameters', $response->transactionResponse)) {
-            if (array_key_exists('URL_PAYMENT_RECEIPT_HTML', $response->transactionResponse->extraParameters)) {
-                $urlPaymentReciptHtml = $response->transactionResponse->extraParameters->URL_PAYMENT_RECEIPT_HTML;
-            }
-            if (array_key_exists('URL_PAYMENT_RECEIPT_PDF', $response->transactionResponse->extraParameters)) {
-                $urlPaymentReciptPdf = $response->transactionResponse->extraParameters->URL_PAYMENT_RECEIPT_PDF;
-            }
-        }
-
-        $data = TransactionResponse::create([
-            'id_request_info' => $idRequestInfo,
-            'id_order' => $orderId,
-            'id_transaction' => $transactionId,
-            'status' => $response->transactionResponse->state,
-            'response_code' => $responseCode,
-            'pending_reason' => $pendingReason,
-            'url_payment_recipt_html' => $urlPaymentReciptHtml,
-            'url_payment_recipt_pdf' => $urlPaymentReciptPdf,
-            'authorization_code' => $authorizationCode,
-            'trazability_code' => $trazabilityCode,
-            'global_update' => $globalStatus,
-        ]);
     }
 
     /**
@@ -571,7 +487,7 @@ class CheckoutController extends Controller
             $body = json_decode($body);
 
             Helpers::logResponse($body, 'notify', 'global_log');
-            $this->storeTransaction($response, $id, $body->message);
+            ResourcesController::storeTransaction($response, $id, $body->message);
 
             return response()->json($response, 200);
 
